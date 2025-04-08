@@ -1,7 +1,10 @@
 import app from "./app.js";
+import connectToMongoDb from "./db.js";
 
 // Define the port to listen on
 const port = process.env.PORT || 3005;
+
+connectToMongoDb(); //Conecto a la base de datos
 
 //Inicializo Servidor
 const server = async () => {
