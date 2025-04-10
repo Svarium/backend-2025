@@ -1,25 +1,32 @@
-import Trial  from '../models/trial.model.js'; //importo el modelo de la base de datos
+import User from "../models/user.model.js"; // Import the User model
 
-export const home = (req,res) => {
-    res.send("Hello World from my controller of express"); //envio un mensaje de bienvenida
-}
-
-export const about = (req,res) => {
-    res.send("Hello this is about us page from my express controller!!! "); //envio un mensaje de bienvenida
-}
-
-export const mongoTest = async (req, res) => {
+export const register = async(req, res) => {
     try {
+        const { username, email, password } = req.body; // Desestructuramos el cuerpo de la solicitud
 
-        const newTrial = new Trial({ name: 'Prueba de escritura en MongoDB!' }); //creo un nuevo objeto de la clase Trial
+        // Verificamos si el usuario ya existe
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ message: "User already exists" });
+        }
 
-        const saveTrial = await newTrial.save(); //guardo el objeto en la base de datos
+        // Creamos un nuevo usuario
+        const newUser = new User({
+            username,
+            email,
+            password,
+        });
 
-        return res.status(200).json(saveTrial); //devuelvo el objeto guardado en la base de datos
+        // Guardamos el usuario en la base de datos
+        await newUser.save();
+
+        return res.status(201).json({ message: "User registered successfully" });
+
         
     } catch (error) {
-        console.log("Error in mongoTest: ", error); //si hay un error lo muestro por consola        
+        return res.status(500).json({ message: error.message });
     }
+
 }
 
 
