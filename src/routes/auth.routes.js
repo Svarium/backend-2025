@@ -1,12 +1,21 @@
 import express from "express"; //requiero express
 import { validateSchema } from "../middlewares/validator.middleware.js";
-import { registerSchema } from "../validators/auth.validator.js";
-import { register } from "../controllers/auth.controller.js";
+import { loginSchema, registerSchema } from "../validators/auth.validator.js";
+import { login, logout, profile, register, verifiToken } from "../controllers/auth.controller.js";
+import { authRequired } from "../middlewares/validateToken.js";
 
 
 const router = express.Router(); //creo el router
 
 router.post("/register", validateSchema(registerSchema),register)//defino la ruta de registro y le aplico el middleware de validación y el controlador
+
+router.post("/login", validateSchema(loginSchema), login)//defino la ruta de login y le aplico el middleware de validación y el controlador
+
+router.post("/logout", logout)//defino la ruta de logout y le aplico el controlador
+
+router.get("/profile", authRequired, profile)//defino la ruta de perfil y le aplico el controlador
+
+router.get("/verify-token", verifiToken)//defino la ruta de verificación y le aplico el controlador
 
 
 export default router; //exporto el router

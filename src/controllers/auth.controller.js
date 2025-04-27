@@ -1,32 +1,164 @@
+import bcrypt from "bcryptjs";
+import { createAccessToken } from "../helpers/jwt.js";
 import User from "../models/user.model.js"; // Import the User model
+import jwt from 'jsonwebtoken';
+
+
 
 export const register = async(req, res) => {
-    try {
-        const { username, email, password } = req.body; // Desestructuramos el cuerpo de la solicitud
+   try {
+    const {username, email, password} = req.body; // Destructure the request body
 
-        // Verificamos si el usuario ya existe
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({ message: "User already exists" });
-        }
+    // Check if the user already exists
+    const userFound = await User.findOne({email});
 
-        // Creamos un nuevo usuario
-        const newUser = new User({
-            username,
-            email,
-            password,
-        });
+    if(userFound) return res.status(400).json({message: "user already exists"}); // If user exists, send a 400 response
 
-        // Guardamos el usuario en la base de datos
-        await newUser.save();
+    // Hash the password
+    const passwordHash = await bcrypt.hash(password, 10); // Hash the password with a salt rounds of 10
 
-        return res.status(201).json({ message: "User registered successfully" });
+    // Create a new user
+    const newUser =  new User({
+        username,
+        email,
+        password: passwordHash, // Store the hashed password
+    })
 
-        
-    } catch (error) {
-        return res.status(500).json({ message: error.message });
-    }
+    // Save the new user to the database
+    const savedUser = await newUser.save(); // Save the user to the database
+
+    //create a token for the user
+    const token = await createAccessToken({
+        id:savedUser._id // Use the user's ID as the payload for the token
+    })
+
+    // Set the token in a cookie
+    res.cookie("token", token, {
+        httpOnly: process.env.NODE_ENV !== "development",
+        secure: true,
+        sameSite: "none",
+    })
+
+    // Send a success response with the user data and token
+    res.status(201).json({
+        id: savedUser._id,
+        username: savedUser.username,
+        email: savedUser.email,    
+        passwordHash: savedUser.password, // Include the hashed password in the response (optional, for debugging purposes)  
+        token, // Include the token in the response
+    })
+      
+
+   } catch (error) {
+    res.status(500).json({message: error.message}); // Handle any errors that occur during registration
+   }
 
 }
 
+export const login = async(req,res) => {
+    try {
+
+        const {email, password} = req.body; // Destructure the request body
+
+        // Check if the user exists
+        const userFound = await User.findOne({email}); // Find the user by email
+
+        if(!userFound) return res.status(400).json({message: "user not found"}); // If user does not exist, send a 400 response
+
+        //compare the password with the hashed password in the database
+        const isMatch = await bcrypt.compare(password, userFound.password); // Compare the provided password with the hashed password
+
+        if(!isMatch) return res.status(400).json({message: "invalid credentials"}); // If passwords do not match, send a 400 response
+
+        //create a token for the user
+        const token = await createAccessToken({
+            id:userFound._id, // Use the user's ID as the payload for the token,
+            username: userFound.username, // Include the username in the token payload (optional)
+            email: userFound.email, // Include the email in the token payload (optional)
+        })
+
+        // Set the token in a cookie
+        res.cookie("token", token, {
+            httpOnly: true,
+            secure: true,
+            sameSite: "none",
+        })
+
+        //send a success response with the user data and token
+
+        res.status(200).json({
+            id: userFound._id,
+            username: userFound.username,
+            email: userFound.email,  
+            token, // Include the token in the response
+        })
+        
+    } catch (error) {
+        console.log(error.message);
+        return res.status(500).json({msg: "Server Error: " + error.message});  
+    }
+}
+
+export const logout = async (req,res) => {
+    try {
+
+        //clean the cookie
+        res.cookie("token", "", {expires: new Date(0)}) // Clear the token cookie by setting it to an empty string and an expiration date in the past
+
+        res.status(200).json({message: "Logout success"}); // Send a success response        
+        
+    } catch (error) {
+        console.log(error.message);
+        return res.status(500).json({msg: "Server Error: " + error.message});
+    }
+}
+
+export const profile = async (req,res) => {
+    try {
+        // Check if the user is authenticated
+        const userFound = await User.findById(req.user.id);
+
+        // If user is not found, send a 404 response
+        if(!userFound) return res.status(404).json({message: "user not found"}); // If user does not exist, send a 404 response
+
+        return res.status(200).json({
+            id: userFound._id,
+            username: userFound.username,
+            email: userFound.email,
+            createdAt: userFound.createdAt,
+            updatedAt: userFound.updatedAt,
+        })
+        
+    } catch (error) {
+        console.log(error.message);
+        return res.status(500).json({msg: "Server Error: " + error.message});
+    }
+}
+
+export const verifiToken = async (req,res) => {
+    try {
+        // Check if the user is authenticated
+        const {token} = req.cookies; // Get the token from the request cookies
+
+        if(!token) return res.send(false)// If no token is provided, send a false response
+
+        jwt.verify(token, process.env.SECRET_KEY, async(error, user) => {
+            if(error) return res.sendStatus(401); // If token verification fails, send a 401 response
+
+            const userFound = await User.findById(user.id); // Find the user by ID from the token
+            if(!userFound) return res.sendStatus(401); // If user is not found, send a 401 response
+
+            return res.json({
+                id: userFound._id,
+                username: userFound.username,
+                email: userFound.email,
+                cookie:token, // Include the token in the response
+            });
+        });
+        
+    } catch (error) {
+        console.log(error.message);
+        return res.status(500).json({msg: "Server Error: " + error.message});        
+    }
+}
 

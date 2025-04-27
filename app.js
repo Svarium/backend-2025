@@ -1,6 +1,7 @@
 import express, { urlencoded } from "express"; //requiero express
 import dotenv from "dotenv"; //requiero dotenv
 import cors from "cors"; //requiero cors
+import cookieParser from "cookie-parser"; //requiero cookie-parser
 import fs from "node:fs"; //requiero fs 
 import morgan from "morgan";
 
@@ -8,7 +9,6 @@ dotenv.config(); //cargo las variables de entorno
 
 const app = express(); //creo la app
 
-app.use(morgan("dev")); //uso morgan para el log de las peticiones
 
 //Middlewares
 app.use(cors({
@@ -19,6 +19,8 @@ app.use(express.json()); //parseo el json
 app.use(urlencoded({ //parseo el urlencoded
     extended: true, //permito el uso de objetos y arrays
 }))
+app.use(morgan("dev")); //uso morgan para el log de las peticiones
+app.use(cookieParser()); //uso cookie-parser para el manejo de cookies
 
 
 //RUTAS
