@@ -3,6 +3,9 @@ import { validateSchema } from "../middlewares/validator.middleware.js";
 import { loginSchema, registerSchema } from "../validators/auth.validator.js";
 import { login, logout, profile, register, verifiToken } from "../controllers/auth.controller.js";
 import { authRequired } from "../middlewares/validateToken.js";
+import { getProfileImage, uploadProfileImage } from "../controllers/profile.controller.js";
+import upload from "../helpers/multer.config.js";
+
 
 
 const router = express.Router(); //creo el router
@@ -16,6 +19,17 @@ router.post("/logout", logout)//defino la ruta de logout y le aplico el controla
 router.get("/profile", authRequired, profile)//defino la ruta de perfil y le aplico el controlador
 
 router.get("/verify-token", verifiToken)//defino la ruta de verificación y le aplico el controlador
+
+router.post("/upload-profile-image", 
+    authRequired, 
+    upload.single('profileImage'), 
+    uploadProfileImage
+);
+
+router.get("/profile-image", 
+    authRequired, 
+    getProfileImage
+);
 
 
 export default router; //exporto el router

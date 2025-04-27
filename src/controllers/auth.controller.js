@@ -4,7 +4,6 @@ import User from "../models/user.model.js"; // Import the User model
 import jwt from 'jsonwebtoken';
 
 
-
 export const register = async(req, res) => {
    try {
     const {username, email, password} = req.body; // Destructure the request body
@@ -115,20 +114,18 @@ export const logout = async (req,res) => {
 
 export const profile = async (req,res) => {
     try {
-        // Check if the user is authenticated
         const userFound = await User.findById(req.user.id);
 
-        // If user is not found, send a 404 response
-        if(!userFound) return res.status(404).json({message: "user not found"}); // If user does not exist, send a 404 response
+        if(!userFound) return res.status(404).json({message: "user not found"});
 
         return res.status(200).json({
             id: userFound._id,
             username: userFound.username,
             email: userFound.email,
+            profileImage: userFound.profileImage, // Añade esta línea
             createdAt: userFound.createdAt,
             updatedAt: userFound.updatedAt,
-        })
-        
+        });
     } catch (error) {
         console.log(error.message);
         return res.status(500).json({msg: "Server Error: " + error.message});

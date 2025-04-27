@@ -4,10 +4,16 @@ import cors from "cors"; //requiero cors
 import cookieParser from "cookie-parser"; //requiero cookie-parser
 import fs from "node:fs"; //requiero fs 
 import morgan from "morgan";
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config(); //cargo las variables de entorno
 
 const app = express(); //creo la app
+
+// Obtener __dirname en ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 
 //Middlewares
@@ -21,6 +27,9 @@ app.use(urlencoded({ //parseo el urlencoded
 }))
 app.use(morgan("dev")); //uso morgan para el log de las peticiones
 app.use(cookieParser()); //uso cookie-parser para el manejo de cookies
+
+// Configuración de archivos estáticos
+app.use(express.static(path.join(__dirname, 'public')));
 
 
 //RUTAS
