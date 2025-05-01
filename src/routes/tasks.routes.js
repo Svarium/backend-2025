@@ -3,6 +3,8 @@ import { authRequired } from "../middlewares/validateToken.js";
 import { createTask, deleteTask, getTask, getTasks, updateTask } from "../controllers/task.controller.js";
 import { validateSchema } from "../middlewares/validator.middleware.js";
 import { createTaskShema } from "../validators/task.validator.js";
+import upload from "../helpers/multer.config.tasks.js";
+import { cleanupTaskFiles } from "../middlewares/cleanupTaskFiles.js";
 
 
 
@@ -14,18 +16,24 @@ router.get("/tasks", authRequired, getTasks);
 //obtener una tarea por id
 router.get("/tasks/:id", authRequired, getTask);
 
-//crear una tarea
+// Crear una tarea con archivos
 router.post(
-    "/tasks",
-    authRequired,
-    validateSchema(createTaskShema),
-    createTask
-  );
+  "/tasks",
+  authRequired,
+  upload.array('files', 5), // 'files' es el nombre del campo y 5 es el máximo de archivos
+  validateSchema(createTaskShema),
+  createTask
+);
 
-//actualizar una tarea
-router.put("/tasks/:id", authRequired, updateTask);
+// Actualizar una tarea con archivos
+router.put(
+  "/tasks/:id", 
+  authRequired, 
+  upload.array('files', 5),
+  updateTask
+);
 
 //eliminar una tarea
-router.delete("/tasks/:id", authRequired, deleteTask); 
+router.delete("/tasks/:id", authRequired, cleanupTaskFiles, deleteTask);
 
 export default router;

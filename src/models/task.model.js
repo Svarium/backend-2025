@@ -1,3 +1,4 @@
+// models/task.model.js
 import mongoose from 'mongoose';
 
 const taskSchema = new mongoose.Schema({
@@ -18,11 +19,17 @@ const taskSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true,
-    }
+    },
+    files: [{
+        name: String,
+        path: String,
+        size: Number,
+        mimetype: String
+    }]
 },
     {
         timestamps: true,
-        versionKey: false,  // To remove versionKey from the output document
+        versionKey: false,
     }
 );
 
