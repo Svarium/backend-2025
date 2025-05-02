@@ -1,7 +1,7 @@
 import express from "express"; //requiero express
 import { validateSchema } from "../middlewares/validator.middleware.js";
 import { loginSchema, registerSchema } from "../validators/auth.validator.js";
-import { login, logout, profile, register, verifiToken } from "../controllers/auth.controller.js";
+import { login, logout, profile, register, verifiToken, verifyEmail } from "../controllers/auth.controller.js";
 import { authRequired } from "../middlewares/validateToken.js";
 import { getProfileImage, uploadProfileImage } from "../controllers/profile.controller.js";
 import upload from "../helpers/multer.config.js";
@@ -30,6 +30,8 @@ router.get("/profile-image",
     authRequired, 
     getProfileImage
 );
+
+router.get("/verify-email", verifyEmail);
 
 
 export default router; //exporto el router

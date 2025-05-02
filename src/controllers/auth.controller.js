@@ -2,57 +2,67 @@ import bcrypt from "bcryptjs";
 import { createAccessToken } from "../helpers/jwt.js";
 import User from "../models/user.model.js"; // Import the User model
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import transport from '../helpers/mailer.js';
 
 
 export const register = async(req, res) => {
-   try {
-    const {username, email, password} = req.body; // Destructure the request body
-
-    // Check if the user already exists
-    const userFound = await User.findOne({email});
-
-    if(userFound) return res.status(400).json({message: "user already exists"}); // If user exists, send a 400 response
-
-    // Hash the password
-    const passwordHash = await bcrypt.hash(password, 10); // Hash the password with a salt rounds of 10
-
-    // Create a new user
-    const newUser =  new User({
-        username,
-        email,
-        password: passwordHash, // Store the hashed password
-    })
-
-    // Save the new user to the database
-    const savedUser = await newUser.save(); // Save the user to the database
-
-    //create a token for the user
-    const token = await createAccessToken({
-        id:savedUser._id // Use the user's ID as the payload for the token
-    })
-
-    // Set the token in a cookie
-    res.cookie("token", token, {
-        httpOnly: process.env.NODE_ENV !== "development",
-        secure: true,
-        sameSite: "none",
-    })
-
-    // Send a success response with the user data and token
-    res.status(201).json({
-        id: savedUser._id,
-        username: savedUser.username,
-        email: savedUser.email,    
-        passwordHash: savedUser.password, // Include the hashed password in the response (optional, for debugging purposes)  
-        token, // Include the token in the response
-    })
-      
-
-   } catch (error) {
-    res.status(500).json({message: error.message}); // Handle any errors that occur during registration
-   }
-
-}
+    try {
+     const {username, email, password} = req.body;
+ 
+     const userFound = await User.findOne({email});
+     if(userFound) return res.status(400).json({message: "user already exists"});
+ 
+     const passwordHash = await bcrypt.hash(password, 10);
+ 
+     // Generar token de verificación
+     const verificationToken = crypto.randomBytes(20).toString('hex');
+ 
+     const newUser = new User({
+         username,
+         email,
+         password: passwordHash,
+         verificationToken
+     });
+ 
+     const savedUser = await newUser.save();
+ 
+     // Enviar email de verificación
+     const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+     
+     await transport.sendMail({
+         from: process.env.MAIL_FROM,
+         to: savedUser.email,
+         subject: 'Verifica tu email - TODOAPP',
+         template: 'verifyEmail',
+         context: {
+             username: savedUser.username,
+             verificationLink
+         }
+     });
+ 
+     const token = await createAccessToken({
+         id: savedUser._id
+     });
+ 
+     res.cookie("token", token, {
+         httpOnly: process.env.NODE_ENV !== "development",
+         secure: true,
+         sameSite: "none",
+     });
+ 
+     res.status(201).json({
+         id: savedUser._id,
+         username: savedUser.username,
+         email: savedUser.email,    
+         isVerified: savedUser.isVerified,
+         token,
+     });
+ 
+    } catch (error) {
+     res.status(500).json({message: error.message});
+    }
+ }
 
 export const login = async(req,res) => {
     try {
@@ -158,4 +168,26 @@ export const verifiToken = async (req,res) => {
         return res.status(500).json({msg: "Server Error: " + error.message});        
     }
 }
+
+
+export const verifyEmail = async (req, res) => {
+    try {
+        const { token } = req.query;
+
+        const user = await User.findOne({ verificationToken: token });
+
+        if (!user) {
+            return res.status(400).json({ message: "Token de verificación inválido o expirado" });
+        }
+
+        user.isVerified = true;
+        user.verificationToken = undefined;
+        await user.save();
+
+        return res.status(200).json({ message: "Email verificado con éxito" });
+    } catch (error) {
+        console.log(error.message);
+        return res.status(500).json({ msg: "Server Error: " + error.message });
+    }
+};
 
