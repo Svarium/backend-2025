@@ -5,6 +5,8 @@ import { login, logout, profile, register, verifiToken, verifyEmail } from "../c
 import { authRequired } from "../middlewares/validateToken.js";
 import { getProfileImage, uploadProfileImage } from "../controllers/profile.controller.js";
 import upload from "../helpers/multer.config.js";
+import { requestPasswordReset, resetPassword } from "../controllers/passwordReset.controller.js";
+
 
 
 
@@ -32,6 +34,12 @@ router.get("/profile-image",
 );
 
 router.get("/verify-email", verifyEmail);
+
+// Ruta para solicitar reseteo de contraseña
+router.post("/request-password-reset", requestPasswordReset);
+
+// Ruta para actualizar la contraseña
+router.post("/reset-password/:token", resetPassword);
 
 
 export default router; //exporto el router
