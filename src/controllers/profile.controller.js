@@ -9,6 +9,11 @@ const __dirname = path.dirname(__filename);
 
 export const uploadProfileImage = async (req, res) => {
     try {
+
+        if(req.fileValidationError){
+            return res.status(400).json({ message: req.fileValidationError });
+        }
+        
         if (!req.file) {
             return res.status(400).json({ message: "No se ha subido ninguna imagen" });
         }
@@ -18,7 +23,7 @@ export const uploadProfileImage = async (req, res) => {
 
         if (!user) {
             // Eliminar la imagen recién subida si el usuario no existe
-            fs.unlinkSync(req.file.path);
+            fs.existsSync(path.join(__dirname,`../../public/uploads/profile/${req.file.filename}`)) && fs.unlinkSync(path.join(__dirname,`../../public/uploads/profile/${req.file.filename}`)) //SI HAY ERROR Y CARGÓ IMAGEN ESTE METODO LA BORRA
             return res.status(404).json({ message: "Usuario no encontrado" });
         }
 
