@@ -4,10 +4,8 @@ import { loginSchema, registerSchema } from "../validators/auth.validator.js";
 import { login, logout, profile, register, verifiToken, verifyEmail } from "../controllers/auth.controller.js";
 import { authRequired } from "../middlewares/validateToken.js";
 import { getProfileImage, uploadProfileImage } from "../controllers/profile.controller.js";
-import upload from "../helpers/multer.config.js";
 import { requestPasswordReset, resetPassword } from "../controllers/passwordReset.controller.js";
-
-
+import uploadIconProfileImage from "../helpers/multer.config.iconProfile.js";
 
 
 const router = express.Router(); //creo el router
@@ -24,7 +22,7 @@ router.get("/verify-token", verifiToken)//defino la ruta de verificación y le a
 
 router.post("/upload-profile-image", 
     authRequired, 
-    upload.single('profileImage'), 
+    uploadIconProfileImage.single("iconProfile"), // Cambia "profileImage" por el nombre del campo que estás usando en el formulario
     uploadProfileImage
 );
 
