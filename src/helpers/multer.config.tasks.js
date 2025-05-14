@@ -1,37 +1,61 @@
 import multer from 'multer';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const storageTaskFiles = multer.diskStorage({
+    destination: function(req, file, callback) {
+        callback(null, "public/uploads/tasks");
+    },
+    filename: function (req, file, callback) {
+        callback(null, `${Date.now()}_tasks_${path.extname(file.originalname)}`);
+    },
+});
 
-// Configuración de almacenamiento para archivos de tareas
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, '../../public/uploads/tasks'));
+const configUploadTaskFiles = multer({
+  storage: storageTaskFiles,
+  limits: {
+    files: 5,
+    fileSize: 2 * 1024 * 1024 // 2MB
   },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, 'taskfile-' + uniqueSuffix + path.extname(file.originalname));
+  fileFilter: (req, file, cb) => {
+    // 1. Validar el título ANTES de aceptar archivos
+    if (!req.body.title || req.body.title.trim() === "") {
+      req.fileValidationError = "Es obligatorio que mandes un título";
+      return cb(null, false); // Rechazar todos los archivos
+    }
+
+    // 2. Validar tipos de archivo (como ya lo tenías)
+    const filetypes = /jpeg|jpg|png|gif|webp|pdf|doc|docx|zip/;
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = filetypes.test(file.mimetype);
+
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      req.fileValidationError = "Solo se permiten archivos: jpeg, jpg, png, gif, webp, pdf, doc, docx, zip";
+      return cb(null, false);
+    }
   }
 });
 
-// Filtro para tipos de archivos permitidos (puedes ajustarlo según tus necesidades)
-const fileFilter = (req, file, cb) => {
-  const filetypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt|zip/;
-  const mimetype = filetypes.test(file.mimetype);
-  const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-  
-  if (mimetype && extname) {
-    return cb(null, true);
-  }
-  cb(new Error('Error: Solo se permiten archivos de imagen, PDF, documentos y ZIP'));
+const uploadTasksFiles = (req, res, next) => {
+    const upload = configUploadTaskFiles.array("files"); 
+
+    upload(req, res, function(error) {
+        if (error) {
+            if (error.code === 'LIMIT_FILE_SIZE') {
+                req.fileValidationError = "Cada archivo debe ser menor a 2MB";
+            } else if (error.code === 'LIMIT_FILE_COUNT') {
+                req.fileValidationError = "No más de 5 archivos permitidos";
+            } else if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+                req.fileValidationError = "Nombre del campo de archivo incorrecto, debe ser 'files'";
+            } else {
+                req.fileValidationError = "Error al subir archivos";
+            }
+        }   
+        next();
+    });
 };
 
-const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 } // Límite de 10MB por archivo
-});
 
-export default upload;
+
+export default uploadTasksFiles;
