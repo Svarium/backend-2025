@@ -1,5 +1,7 @@
-import { processFiles,  cleanupTempFiles, saveFilesPermanently } from "../helpers/fileHandler.js";
-import Task from "../models/task.model.js";
+import fs from 'fs';
+import path from 'path';
+import Task from '../models/task.model.js';
+
 
 
 export const getTasks = async (req, res) => {
@@ -16,39 +18,66 @@ export const getTasks = async (req, res) => {
   }
 };
 
-
 export const createTask = async (req, res) => {
-  let processedFiles = [];
-  
-  try {
-    // 1. Procesar archivos (sin comprometer aún)
-    processedFiles = processFiles(req.files);
-    
-    // 2. Validaciones adicionales (ejemplo)
-    const { title, description, dueDate } = req.body;
-    if (!title) {
-      throw new Error('Title is required');
+// Verifica errores de validación del esquema (ahora ocurren después de Multer)
+  if (req.validationError) {  // Asumo que validateSchema guarda errores aquí
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        const filePath = path.join('public', 'uploads', 'tasks', file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      });
     }
+    return res.status(400).json({ message: req.validationError });
+  }
+
+  // Verifica errores de Multer (como antes)
+  if (req.fileValidationError) {
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        const filePath = path.join('public', 'uploads', 'tasks', file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      });
+    }
+    return res.status(400).json({ message: req.fileValidationError });
+  }
+
+  try {
+    const { title, description, dueDate } = req.body;
     
-    // 3. Si todo está OK, guardar archivos permanentemente
-    const savedFiles = await saveFilesPermanently(processedFiles);
-    
-    // 4. Crear la tarea
+    let savedFiles = [];
+    if (req.files && req.files.length > 0) {
+      savedFiles = req.files.map(file => ({
+        name: file.originalname,
+        path: `/uploads/tasks/${file.filename}`,
+        size: file.size,
+        mimetype: file.mimetype
+      }));
+    }
+
     const newTask = new Task({
       title,
       description,
-      dueDate,
+      dueDate: dueDate || new Date(),
       user: req.user.id,
       files: savedFiles
     });
     
     const savedTask = await newTask.save();
-    
     return res.status(201).json(savedTask);
     
   } catch (error) {
-    // Limpiar archivos temporales si hubo error
-    await cleanupTempFiles(processedFiles);
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        const filePath = path.join('public', 'uploads', 'tasks', file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      });
+    }
     return res.status(400).json({ error: error.message });
   }
 };
@@ -66,24 +95,30 @@ export const getTask = async (req, res) => {
 };
 
 export const updateTask = async (req, res) => {
-  // 1. Primero validamos TODO antes de tocar los archivos
+  // 1. Verificar errores de Multer (title o archivos inválidos)
+  if (req.fileValidationError) {
+    return res.status(400).json({ message: req.fileValidationError });
+  }
+
   try {
-    // Verificar existencia de la tarea
+    // 2. Verificar existencia de la tarea
     const existingTask = await Task.findById(req.params.id);
     if (!existingTask) {
-      throw new Error('Task not found');
+      return res.status(404).json({ message: 'Task not found' });
     }
 
-    // Validaciones adicionales (ejemplo)
-    if (req.body.title && req.body.title.trim() === '') {
-      throw new Error('Title cannot be empty');
+    // 3. Procesar archivos nuevos (si los hay)
+    let savedFiles = [];
+    if (req.files && req.files.length > 0) {
+      savedFiles = req.files.map(file => ({
+        name: file.originalname,
+        path: `/uploads/tasks/${file.filename}`,
+        size: file.size,
+        mimetype: file.mimetype
+      }));
     }
 
-    // 2. Solo si todo está OK, procesamos archivos
-    const processedFiles = processFiles(req.files);
-    const savedFiles = await saveFilesPermanently(processedFiles);
-
-    // 3. Actualizar la tarea
+    // 4. Actualizar la tarea (combinar archivos existentes con nuevos)
     const updateData = {
       ...req.body,
       files: [...(existingTask.files || []), ...savedFiles]
@@ -98,12 +133,16 @@ export const updateTask = async (req, res) => {
     return res.status(200).json(updatedTask);
 
   } catch (error) {
-    // 4. Limpiar archivos si hubo error
-    if (req.files?.length) {
-      await cleanupTempFiles(processFiles(req.files));
+    // 5. Limpiar archivos subidos si hubo error (excepto si la tarea no existe)
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        const filePath = path.join('public', 'uploads', 'tasks', file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      });
     }
-    return res.status(error.message === 'Task not found' ? 404 : 400)
-              .json({ error: error.message });
+    return res.status(400).json({ error: error.message });
   }
 };
 
