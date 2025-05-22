@@ -99,6 +99,7 @@ export const login = async(req,res) => {
             id: userFound._id,
             username: userFound.username,
             email: userFound.email,  
+            isVerified: userFound.isVerified,
             token, // Include the token in the response
         })
         
@@ -184,7 +185,17 @@ export const verifyEmail = async (req, res) => {
         user.verificationToken = undefined;
         await user.save();
 
-        return res.status(200).json({ message: "Email verificado con éxito" });
+       return res.status(200).json({ 
+            success: true,
+            message: "Email verificado con éxito",
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                isVerified: user.isVerified
+            }
+            });
+
     } catch (error) {
         console.log(error.message);
         return res.status(500).json({ msg: "Server Error: " + error.message });
