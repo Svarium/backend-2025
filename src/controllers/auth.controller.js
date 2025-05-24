@@ -143,32 +143,33 @@ export const profile = async (req,res) => {
     }
 }
 
-export const verifiToken = async (req,res) => {
-    try {
-        // Check if the user is authenticated
-        const {token} = req.cookies; // Get the token from the request cookies
+export const verifiToken = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
 
-        if(!token) return res.send(false)// If no token is provided, send a false response
-
-        jwt.verify(token, process.env.SECRET_KEY, async(error, user) => {
-            if(error) return res.sendStatus(401); // If token verification fails, send a 401 response
-
-            const userFound = await User.findById(user.id); // Find the user by ID from the token
-            if(!userFound) return res.sendStatus(401); // If user is not found, send a 401 response
-
-            return res.json({
-                id: userFound._id,
-                username: userFound.username,
-                email: userFound.email,
-                cookie:token, // Include the token in the response
-            });
-        });
-        
-    } catch (error) {
-        console.log(error.message);
-        return res.status(500).json({msg: "Server Error: " + error.message});        
+    let token;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
+    } else {
+      return res.status(401).json({ message: "No token provided" });
     }
-}
+
+    const decoded = jwt.verify(token, process.env.SECRET_KEY);
+    const userFound = await User.findById(decoded.id);
+
+    if (!userFound) return res.sendStatus(401);
+
+    return res.json({
+      id: userFound._id,
+      username: userFound.username,
+      email: userFound.email,
+      isVerified: userFound.isVerified,
+    });
+  } catch (error) {
+    console.error(error.message);
+    return res.status(401).json({ message: "Token inválido o expirado" });
+  }
+};
 
 
 export const verifyEmail = async (req, res) => {
